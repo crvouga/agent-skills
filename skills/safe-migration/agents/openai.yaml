@@ -1,0 +1,6 @@
+interface:
+  display_name: "Safe migration"
+  short_description: "Plan a migration as safe steps, run the next one, or report its health"
+  default_prompt: "Use $safe-migration to report where the migration stands and do exactly its next step, asking me before anything that needs a human. Migration: [name, or the goal to plan]."
+policy:
+  allow_implicit_invocation: false
