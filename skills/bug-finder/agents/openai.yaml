@@ -1,0 +1,6 @@
+interface:
+  display_name: "Bug finder"
+  short_description: "Run the app, hunt for bugs and security issues, file proven GitHub issues"
+  default_prompt: "Use $bug-finder to start this repository's app locally, explore it for bugs and security issues, and file a GitHub issue with evidence and fix instructions for each one you can reproduce. Do not fix anything."
+policy:
+  allow_implicit_invocation: false

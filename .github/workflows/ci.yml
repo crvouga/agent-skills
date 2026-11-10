@@ -1,0 +1,104 @@
+name: CI
+
+# Checks that every skill is well formed and installs cleanly through each
+# supported route. The release workflow reuses this file before publishing.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Pinned so a new upstream release can't break CI unannounced. Bump deliberately.
+  CLAUDE_CODE_VERSION: "2.1.310"
+  SKILLS_CLI_VERSION: "1.7.4"
+  DISABLE_TELEMETRY: "1"
+  DISABLE_AUTOUPDATER: "1"
+
+jobs:
+  validate:
+    name: Validate and test (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Validate skills
+        run: python3 scripts/validate_skills.py
+      - name: Unit tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Node tests
+        run: node --test tests/*.test.mjs
+      - name: Whitespace
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff --check "${BASE_SHA:-HEAD~1}" HEAD
+      - name: Build release archives
+        run: python3 scripts/package_skills.py --out dist
+
+  install:
+    name: Install smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install Claude Code
+        run: npm install --global "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+
+      - name: Claude Code plugin manifest
+        run: claude plugin validate . --strict
+
+      - name: Claude Code plugin install
+        run: |
+          export CLAUDE_CONFIG_DIR="$RUNNER_TEMP/claude-config"
+          project="$RUNNER_TEMP/claude-project"
+          mkdir -p "$project"
+          claude plugin marketplace add "$GITHUB_WORKSPACE"
+          cd "$project"
+          claude plugin install crvouga-skills@crvouga-skills --scope user -y
+          details="$(claude plugin details crvouga-skills@crvouga-skills)"
+          echo "$details"
+          status=0
+          for path in "$GITHUB_WORKSPACE"/skills/*/; do
+            skill="$(basename "$path")"
+            if ! ls "$CLAUDE_CONFIG_DIR"/plugins/cache/crvouga-skills/crvouga-skills/*/skills/"$skill"/SKILL.md >/dev/null 2>&1; then
+              echo "::error::$skill was not copied into the installed plugin"; status=1
+            fi
+            if ! grep -E "^ *Skills \([0-9]+\)" <<<"$details" | grep -qw -- "$skill"; then
+              echo "::error::Claude Code did not load $skill"; status=1
+            fi
+          done
+          exit $status
+
+      - name: npx skills install (Codex, Cursor, Claude Code, and others)
+        run: |
+          project="$RUNNER_TEMP/skills-project"
+          mkdir -p "$project" && cd "$project" && git init -q
+          npx --yes "skills@${SKILLS_CLI_VERSION}" add "$GITHUB_WORKSPACE" --skill '*' -a claude-code codex -y
+          status=0
+          for path in "$GITHUB_WORKSPACE"/skills/*/; do
+            skill="$(basename "$path")"
+            for dir in .agents/skills .claude/skills; do
+              if ! diff -r -x __pycache__ "$GITHUB_WORKSPACE/skills/$skill" "$dir/$skill" >/dev/null; then
+                echo "::error::$dir/$skill does not match skills/$skill"; status=1
+              fi
+            done
+          done
+          exit $status

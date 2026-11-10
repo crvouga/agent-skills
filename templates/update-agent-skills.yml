@@ -1,0 +1,43 @@
+name: Update agent skills
+
+# Template for projects that use skills from https://github.com/crvouga/agent-skills.
+# Copy to .github/workflows/update-agent-skills.yml in your project.
+#
+# Weekly, it refreshes every skill recorded in skills-lock.json (written by
+# `npx skills add`) and opens a pull request when anything changed, so updates
+# are reviewed like any other change.
+#
+# Requires: Settings > Actions > General > "Allow GitHub Actions to create and
+# approve pull requests".
+
+on:
+  schedule:
+    - cron: "23 9 * * 1" # Mondays 09:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Update skills
+        env:
+          DISABLE_TELEMETRY: "1"
+        run: npx --yes skills@1.7.4 update -y
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/update-agent-skills
+          delete-branch: true
+          commit-message: Update agent skills
+          title: Update agent skills
+          body: |
+            Refreshes the agent skills installed with `npx skills` to their latest
+            published versions. Source: https://github.com/crvouga/agent-skills
+            ([releases](https://github.com/crvouga/agent-skills/releases)).
