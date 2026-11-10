@@ -1,0 +1,12 @@
+{
+  "name": "crvouga-skills",
+  "owner": { "name": "crvouga" },
+  "description": "Reusable agent skills for unattended work, merge-ready PRs, and bug hunting.",
+  "plugins": [
+    {
+      "name": "crvouga-skills",
+      "source": "./",
+      "description": "Every skill in this repository's skills/ folder, installed together so skills that use each other stay side by side."
+    }
+  ]
+}
