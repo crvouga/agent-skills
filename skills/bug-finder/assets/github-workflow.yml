@@ -1,0 +1,69 @@
+name: Bug Finder
+
+# Template: copy to .github/workflows/bug-finder.yml in the application repository.
+# Runs the /bug-finder skill (.claude/skills/bug-finder/SKILL.md) on a GitHub runner:
+# starts the app locally, explores it in a headless browser, and files issues.
+# GitHub only runs scheduled workflows from the default branch.
+
+on:
+  schedule:
+    - cron: "17 10 * * 1" # Mondays 10:17 UTC. Change to taste, e.g. "17 10 * * 1-5" for weekdays.
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: "Optional focus, e.g. 'checkout flow' or 'security only'"
+        required: false
+        default: ""
+      max_issues:
+        description: "Maximum issues to file this run"
+        required: false
+        default: "10"
+
+# One hunt at a time, so two runs don't file the same bug.
+concurrency:
+  group: bug-finder
+  cancel-in-progress: false
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write # push screenshots and videos to the bugfinder-evidence branch
+      issues: write # file issues and create labels
+      id-token: write # required by claude-code-action
+    steps:
+      - uses: actions/checkout@v6
+
+      # If your app needs a specific runtime, set it up here, e.g.:
+      # - uses: actions/setup-node@v4
+      #   with:
+      #     node-version-file: .nvmrc
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          # Lets the gh CLI file issues with the workflow's own token.
+          GH_TOKEN: ${{ github.token }}
+          # Optional, public repos only: a fine-grained token with
+          # "Repository security advisories: write", so security findings
+          # go to private draft advisories instead of public issues.
+          BUGFINDER_ADVISORY_TOKEN: ${{ secrets.BUGFINDER_ADVISORY_TOKEN }}
+          # Add any TEST-ONLY values your app needs to boot. Never production secrets:
+          # the agent is deliberately trying to break the app.
+        with:
+          # Or, to use a Claude subscription instead of an API key:
+          # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: "/bug-finder ${{ inputs.focus }} max ${{ inputs.max_issues || '10' }} issues"
+          claude_args: |
+            --max-turns 400
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep"
+
+      # Backup copy of screenshots, videos, repro scripts, and logs.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bug-finder-evidence
+          path: ${{ runner.temp }}/bug-finder/evidence
+          if-no-files-found: ignore
+          retention-days: 30

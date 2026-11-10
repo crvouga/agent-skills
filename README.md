@@ -5,12 +5,17 @@ Reusable agent skills maintained in this repository:
 | Skill | Purpose |
 |---|---|
 | [autopilot](skills/autopilot/SKILL.md) | Complete an unattended task through implementation and a green, merge-ready PR, with resumable checkpoints. |
+| [bug-finder](skills/bug-finder/SKILL.md) | Run the app locally, hunt for bugs and security issues in a headless browser, and file GitHub issues with evidence and fix instructions. Finds only; never fixes. |
 | [pr-green](skills/pr-green/SKILL.md) | Repair and verify a GitHub PR through merge readiness, stopping before merge. |
 
 Each skill's `SKILL.md` defines its workflow and scope; `agents/openai.yaml` supplies
 discovery metadata. PR green includes a standard-library Python helper and an
 [operations reference](skills/pr-green/references/operations.md) for setup and CLI use.
 Editing a skill does not invoke its workflow or update installed copies.
+
+Bug finder is independent of the other two. It includes a
+[GitHub Actions workflow template](skills/bug-finder/assets/github-workflow.yml) for
+scheduled runs in an application repository.
 
 Autopilot is a superset of pr-green: it loads and follows the full PR workflow for
 repository changes, then adds unattended execution, recovery, and checkpointing.
