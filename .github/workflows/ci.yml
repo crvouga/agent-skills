@@ -41,6 +41,8 @@ jobs:
         run: python3 scripts/validate_skills.py
       - name: Unit tests
         run: python3 -m unittest discover -s tests -v
+      - name: Node tests
+        run: node --test tests/*.test.mjs
       - name: Whitespace
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}

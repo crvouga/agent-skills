@@ -8,6 +8,7 @@ below reads from it, and CI checks each change before it reaches anyone.
 | [autopilot](skills/autopilot/SKILL.md) | Complete an unattended task through implementation and a green, merge-ready PR, with resumable checkpoints. |
 | [bug-finder](skills/bug-finder/SKILL.md) | Run the app locally, hunt for bugs and security issues in a headless browser, and file GitHub issues with evidence and fix instructions. Finds only; never fixes. |
 | [pr-green](skills/pr-green/SKILL.md) | Repair and verify a GitHub PR through merge readiness, stopping before merge. |
+| [safe-migration](skills/safe-migration/SKILL.md) | Plan a multi-PR migration as small Low-risk steps, run exactly the next one, and report its health. |
 
 ## Install
 
@@ -73,7 +74,7 @@ Each skill's `SKILL.md` defines its workflow and scope; `agents/openai.yaml` sup
 Codex discovery metadata. PR green includes a standard-library Python helper and an
 [operations reference](skills/pr-green/references/operations.md) for setup and CLI use.
 
-Bug finder is independent of the other two. It includes a
+Bug finder is independent of the other skills. It includes a
 [GitHub Actions workflow template](skills/bug-finder/assets/github-workflow.yml) for
 scheduled runs in an application repository.
 
@@ -84,17 +85,27 @@ references. Repository tasks finish with verified PR readiness unless the user
 explicitly requests a narrower deliverable. Non-repository tasks retain their own
 acceptance criteria; neither skill merges PRs by default.
 
+Safe migration keeps everything about a migration in the target repository, under
+`.safe-migrations/<name>/`: the plan, the progress record, and the read-only scripts
+that check the system. Its dependency-free Node helper
+(`skills/safe-migration/scripts/safe-migration.mjs`) does the bookkeeping and refuses
+steps that are out of order, unapproved, out of scope, or started while a health check
+fails. [safe-steps.md](skills/safe-migration/references/safe-steps.md) defines the safety
+contract and step patterns; [format.md](skills/safe-migration/references/format.md)
+defines the folder. It is independent of the other skills.
+
 ## Maintain
 
 See [AGENTS.md](AGENTS.md) for the rules agents and people follow when changing this
 repository. In short: add a skill as `skills/<name>/` with `SKILL.md` and
 `agents/openai.yaml`, add its row to the table above, and open a PR.
 
-Run the checks with Python 3.10+ and Git:
+Run the checks with Python 3.10+, Node 20+ and Git:
 
 ```sh
 python3 scripts/validate_skills.py
 python3 -m unittest discover -s tests -v
+node --test tests/safe-migration.test.mjs
 git diff --check origin/main
 ```
 

@@ -37,6 +37,7 @@ out in the PR description.
 ```sh
 python3 scripts/validate_skills.py
 python3 -m unittest discover -s tests -v
+node --test tests/*.test.mjs
 git diff --check origin/main
 ```
 

@@ -46,8 +46,8 @@ def check_links(path, root, errors):
         if in_code:
             continue
         for target in LINK_RE.findall(line):
-            if target.startswith(SKIP_LINK):
-                continue
+            if target.startswith(SKIP_LINK) or "{{" in target:
+                continue  # external, in-page, or a template placeholder filled in at copy time
             resolved = (path.parent / target.split("#", 1)[0]).resolve()
             if not resolved.exists():
                 errors.append(f"{path.relative_to(root)}:{number}: broken link to {target}")
